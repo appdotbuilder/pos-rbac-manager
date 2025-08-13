@@ -1,21 +1,49 @@
+import { db } from '../db';
+import { tasksTable } from '../db/schema';
 import { type UpdateTaskInput, type Task } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export const updateTask = async (input: UpdateTaskInput): Promise<Task> => {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is updating an existing task in the database.
-    // It should:
-    // 1. Find the task by ID
-    // 2. Update only the provided fields (partial update)
-    // 3. Set updated_at to current timestamp
-    // 4. Return the updated task
-    // 5. Throw an error if task with given ID doesn't exist
-    return Promise.resolve({
-        id: input.id,
-        title: 'Updated Task', // Placeholder - should merge with existing data
-        description: input.description || null,
-        due_date: input.due_date || new Date(),
-        status: input.status || 'pending',
-        created_at: new Date(), // Placeholder - should preserve original
-        updated_at: new Date() // Should be set to current time
-    } as Task);
+  try {
+    // First check if task exists
+    const existingTask = await db.select()
+      .from(tasksTable)
+      .where(eq(tasksTable.id, input.id))
+      .execute();
+
+    if (existingTask.length === 0) {
+      throw new Error(`Task with id ${input.id} not found`);
+    }
+
+    // Build update data object with only provided fields
+    const updateData: any = {
+      updated_at: new Date() // Always update the timestamp
+    };
+
+    // Only include fields that are provided in the input
+    if (input.title !== undefined) {
+      updateData.title = input.title;
+    }
+    if (input.description !== undefined) {
+      updateData.description = input.description;
+    }
+    if (input.due_date !== undefined) {
+      updateData.due_date = input.due_date;
+    }
+    if (input.status !== undefined) {
+      updateData.status = input.status;
+    }
+
+    // Perform the update
+    const result = await db.update(tasksTable)
+      .set(updateData)
+      .where(eq(tasksTable.id, input.id))
+      .returning()
+      .execute();
+
+    return result[0];
+  } catch (error) {
+    console.error('Task update failed:', error);
+    throw error;
+  }
 };

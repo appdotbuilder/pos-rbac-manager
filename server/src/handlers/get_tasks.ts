@@ -1,11 +1,29 @@
+import { db } from '../db';
+import { tasksTable } from '../db/schema';
 import { type Task, type GetTasksQuery } from '../schema';
+import { eq, asc, desc } from 'drizzle-orm';
 
 export const getTasks = async (query: GetTasksQuery): Promise<Task[]> => {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is fetching tasks from the database with optional filtering and sorting.
-    // It should:
-    // 1. Filter by status if provided in query
-    // 2. Sort by the specified field (due_date, created_at, or title) in the specified direction
-    // 3. Return the filtered and sorted list of tasks
-    return [];
+  try {
+    // Build the query conditionally without reassigning the variable
+    const baseQuery = db.select().from(tasksTable);
+    
+    // Apply sorting based on sortBy and sortDirection
+    const sortColumn = tasksTable[query.sortBy];
+    const sortOrder = query.sortDirection === 'desc' ? desc(sortColumn) : asc(sortColumn);
+
+    // Build final query with conditional filtering
+    const finalQuery = query.status
+      ? baseQuery.where(eq(tasksTable.status, query.status)).orderBy(sortOrder)
+      : baseQuery.orderBy(sortOrder);
+
+    // Execute query
+    const results = await finalQuery.execute();
+
+    // Return results directly - no numeric conversions needed for this schema
+    return results;
+  } catch (error) {
+    console.error('Failed to fetch tasks:', error);
+    throw error;
+  }
 };
